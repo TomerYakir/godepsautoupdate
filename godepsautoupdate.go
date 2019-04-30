@@ -15,22 +15,15 @@ type GodepsEntry struct {
 	CommitVersion        string
 	GitRemote            string
 	GitType              EntryType
-	Status               EntryStatus
+	IsUpdated            bool
+	IsSkipped            bool
+	IsProblem            bool
 	RemoteURL            string
 	NewCommitVersion     string
 	NewCommitDateSummary string
 	DiffURL              string
 	Summary              string
 }
-
-type EntryStatus int
-
-const (
-	Uptodate EntryStatus = 0
-	Outdated EntryStatus = 1
-	Skipped  EntryStatus = 2
-	Problem  EntryStatus = 3
-)
 
 type EntryType int
 
@@ -52,6 +45,9 @@ func NewGoDepsEntry(path, commitVersion, gitRemote string) *GodepsEntry {
 	if g.GitRemote != "" {
 		g.RemoteURL = g.GitRemote
 	}
+	g.IsUpdated = true
+	g.IsSkipped = false
+	g.IsProblem = false
 	return g
 }
 
@@ -83,40 +79,51 @@ func main() {
 
 	analyzeEntries(entries, gopath)
 
+	if report {
+		err := generateReportFile(entries)
+		if err != nil {
+			panicWithMessage("failed to generate the report file. error: %v", err)
+		}
+		openReportFile()
+	}
+
 }
 
 func analyzeEntry(entry *GodepsEntry, gopath string) {
-
+	logInfo("analyzing package %s", entry.Path)
 	packagePath := path.Join(gopath, "src", entry.Path)
 	if !dirExists(packagePath) {
 		goget(gopath, entry.Path, packagePath, entry.GitRemote)
+	} else {
+		addRemote(entry.Path, entry.GitRemote, packagePath)
+		gitpull(packagePath)
+	}
+	if entry.GitRemote == "" {
+		url, err := getGitRemoteUrl(packagePath)
+		if err != nil {
+			entry.IsProblem = true
+			entry.Summary = err.Error()
+			return
+		}
+		entry.RemoteURL = url
 	}
 	if entry.GitType == Commit {
 		// get commits
 		commit, dateSummary, err := getLatestGitCommit(packagePath)
 		if err != nil {
-			entry.Status = Problem
+			entry.IsProblem = true
 			entry.Summary = err.Error()
 			return
 		}
 		entry.NewCommitDateSummary = dateSummary
 		entry.NewCommitVersion = commit
 		if entry.CommitVersion != entry.NewCommitVersion {
-			entry.Status = Outdated
+			entry.IsUpdated = false
 			summary, err := getCommitDiffSummary(packagePath, entry.CommitVersion, commit)
 			if err != nil {
-				entry.Status = Problem
+				entry.IsProblem = true
 				entry.Summary = err.Error()
 				return
-			}
-			if entry.GitRemote != "" {
-				url, err := getGitRemoteUrl(packagePath)
-				if err != nil {
-					entry.Status = Problem
-					entry.Summary = err.Error()
-					return
-				}
-				entry.RemoteURL = url
 			}
 			entry.Summary = summary
 			entry.DiffURL = fmt.Sprintf("%s/compare/%s...%s", entry.RemoteURL, entry.CommitVersion, entry.NewCommitVersion)
@@ -125,34 +132,25 @@ func analyzeEntry(entry *GodepsEntry, gopath string) {
 		// tags or branches
 		oldcommit, err := getCommitByTag(packagePath, entry.CommitVersion)
 		if err != nil {
-			entry.Status = Problem
+			entry.IsProblem = true
 			entry.Summary = err.Error()
 			return
 		}
 		commit, tag, dateSummary, err := getLatestGitCommitByTag(packagePath)
 		if err != nil {
-			entry.Status = Problem
+			entry.IsProblem = true
 			entry.Summary = err.Error()
 			return
 		}
 		entry.NewCommitDateSummary = dateSummary
 		entry.NewCommitVersion = tag
 		if entry.CommitVersion != entry.NewCommitVersion {
-			entry.Status = Outdated
+			entry.IsUpdated = false
 			summary, err := getCommitDiffSummary(packagePath, oldcommit, commit)
 			if err != nil {
-				entry.Status = Problem
+				entry.IsProblem = true
 				entry.Summary = err.Error()
 				return
-			}
-			if entry.GitRemote != "" {
-				url, err := getGitRemoteUrl(packagePath)
-				if err != nil {
-					entry.Status = Problem
-					entry.Summary = err.Error()
-					return
-				}
-				entry.RemoteURL = url
 			}
 			entry.Summary = summary
 			entry.DiffURL = fmt.Sprintf("%s/compare/%s...%s", entry.RemoteURL, oldcommit, commit)
@@ -169,13 +167,13 @@ func analyzeEntries(entries []*GodepsEntry, gopath string) {
 		}
 	}
 	for _, entry := range entries {
-		if entry.Status == Skipped {
+		if entry.IsSkipped {
 			continue
 		}
 		// not parallelising this for now as there may be multiple packages that use the same path
 		logDebug("analysing entry %v", *entry)
 		analyzeEntry(entry, gopath)
-		logInfo("** package %s - data: %v", entry.Path, *entry)
+		logDebug("** package %s - data: %v", entry.Path, *entry)
 	}
 }
 
@@ -199,7 +197,7 @@ func readGodepsFile(gitRoot, godepsPath string) []*GodepsEntry {
 		entry := NewGoDepsEntry(tokens[0], tokens[1], gitRemote)
 		if strings.HasPrefix(line, "git@") {
 			logInfo("packages with @ in their paths aren't supported (yet). line: %s", line)
-			entry.Status = Skipped
+			entry.IsSkipped = true
 			entry.Summary = "packages with @ in their paths aren't supported (yet)"
 		}
 		entries = append(entries, entry)

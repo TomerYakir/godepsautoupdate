@@ -1,0 +1,55 @@
+<html>
+    <head>
+        <title>Dependency Report</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    </head>
+    <body>
+        <h2>Dependency Report</h2>
+        <div>
+            <h4>Summary</h4>
+            <span class="badge badge-success">{{.UptodatePackages}} up-to-date packages</span>
+            <span class="badge badge-warning">{{.OutdatedPackages}} out-of-date packages</span>
+            <span class="badge badge-danger">{{.ProblemPackages}} processing errors</span>
+            <span class="badge badge-info">{{.SkippedPackages}} skipped packages</span>
+        </div>
+        <br/>
+        <div>
+            <h4>Details</h4>
+            <table class="table table-hover table-sm ">
+                <thead class="thead-dark">
+                    <th>Package</th>
+                    <th>Status</th>
+                    <th>Old Version</th>
+                    <th>New Version</th>
+                    <th>Latest Commit Date</th>
+                    <th>Summary</th>
+                </thead>
+                <tbody class="small">
+                    {{range .Entries}}
+                        <tr>
+                            <td><a href="{{.RemoteURL}}" target="_blank">{{.Path}}</a></td>
+                            {{if .IsSkipped}}
+                                <td><span class="badge badge-info">Skipped</span></td>
+                            {{else if .IsProblem}}
+                                <td><span class="badge badge-danger">Problem</span></td>
+                            {{else if .IsUpdated}}
+                                <td><span class="badge badge-success">Up-to-date</span></td>
+                            {{else}}
+                                <td><span class="badge badge-warning">Outdated</span></td>
+                            {{end}}
+                            <td>{{.CommitVersion}}</td>
+                            {{if not .IsUpdated}}
+                                <td><a href="{{.DiffURL}}" target="_blank">{{.NewCommitVersion}}</a></td>
+                                <td>{{.NewCommitDateSummary}}</td>
+                            {{else}}
+                                <td></td>
+                                <td></td>
+                            {{end}}
+                            <td>{{.Summary}}</td>
+                        </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </body>
+</html>

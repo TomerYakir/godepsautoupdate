@@ -71,7 +71,7 @@ func getLatestGitCommitByTag(gitpath string) (string, string, string, error) {
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get commit for tag %s of package %s", latestTag, gitpath)
 	}
-	return clearQuotes(commit), clearQuotes(latestTag), fmt.Sprintf("%s (%s)", latestTagDate, clearQuotes(latestTagRelDate)), nil
+	return clearQuotes(commit), clearQuotes(latestTag), fmt.Sprintf("%s (%s)", clearQuotes(latestTagDate), clearQuotes(latestTagRelDate)), nil
 }
 
 func getCommitByTag(gitpath, tag string) (string, error) {
@@ -98,7 +98,6 @@ func stringContains(s []string, v string) bool {
 }
 
 func getGitRemoteUrl(gitpath string) (string, error) {
-	// git config --get remote.origin.url
 	cmd := exec.Command("git", "-C", gitpath, "config", "--get", "remote.origin.url")
 	logDebug("running command %v", *cmd)
 	out, err := cmd.Output()
@@ -124,7 +123,7 @@ func getGitRoot(godepsPath string) string {
 }
 
 func goget(gopath, gogetpath, packagePath, gitremote string) {
-	logInfo("getting package %s", gogetpath)
+	logDebug("getting package %s", gogetpath)
 	cmd := exec.Command("go", "get", "-d", gogetpath)
 	cmd.Dir = path.Join(gopath, "src")
 	cmd.Env = os.Environ()
@@ -136,15 +135,20 @@ func goget(gopath, gogetpath, packagePath, gitremote string) {
 			panic(fmt.Sprintf("failed to run go get for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
 		}
 	}
+	addRemote(gogetpath, gitremote, packagePath)
+}
 
+func addRemote(gogetpath, gitremote, packagePath string) {
 	if gitremote != "" {
 		logDebug("adding remote %s to %s", gitremote, packagePath)
 		// git remote add downstream ""
-		cmd = exec.Command("git", "-C", packagePath, "remote", "add", "downstream", gitremote)
+		cmd := exec.Command("git", "-C", packagePath, "remote", "add", "downstream", gitremote)
 		logDebug("running command %v", *cmd)
-		out, err = cmd.CombinedOutput()
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
+			if !strings.Contains(string(out), "remote downstream already exists") {
+				panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
+			}
 		}
 		// git fetch downstream
 		cmd = exec.Command("git", "-C", packagePath, "fetch", "downstream")
@@ -153,5 +157,14 @@ func goget(gopath, gogetpath, packagePath, gitremote string) {
 		if err != nil {
 			panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
 		}
+	}
+}
+
+func gitpull(packagePath string) {
+	cmd := exec.Command("git", "-C", packagePath, "pull")
+	logDebug("running command %v", *cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", packagePath, string(out), err))
 	}
 }

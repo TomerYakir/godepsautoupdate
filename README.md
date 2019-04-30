@@ -1,12 +1,13 @@
 ## godepsautoupdate
 
-Script to automatically update the Godeps file with latest versions/commits.
+Script to report on status of dependencies (3rd party libs) - whether there's a newer version/commit available
 
 ### Usage
+1. Clone the repo
 
-1. Build the tool
+2. Build the tool
 
-2. Output an html report with the results
+3. Output an html report with the results
 
-3. Update the godeps file
+4. Update the godeps file
 
