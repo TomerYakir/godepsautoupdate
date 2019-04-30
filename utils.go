@@ -46,5 +46,5 @@ func dirExists(dirpath string) bool {
 }
 
 func clearQuotes(s string) string {
-	return strings.Replace(s, "\"", "", -1)
+	return strings.Replace(strings.Replace(s, "\"", "", -1), "'", "", -1)
 }

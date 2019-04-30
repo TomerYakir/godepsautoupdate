@@ -123,7 +123,40 @@ func analyzeEntry(entry *GodepsEntry, gopath string) {
 		}
 	} else {
 		// tags or branches
-
+		oldcommit, err := getCommitByTag(packagePath, entry.CommitVersion)
+		if err != nil {
+			entry.Status = Problem
+			entry.Summary = err.Error()
+			return
+		}
+		commit, tag, dateSummary, err := getLatestGitCommitByTag(packagePath)
+		if err != nil {
+			entry.Status = Problem
+			entry.Summary = err.Error()
+			return
+		}
+		entry.NewCommitDateSummary = dateSummary
+		entry.NewCommitVersion = tag
+		if entry.CommitVersion != entry.NewCommitVersion {
+			entry.Status = Outdated
+			summary, err := getCommitDiffSummary(packagePath, oldcommit, commit)
+			if err != nil {
+				entry.Status = Problem
+				entry.Summary = err.Error()
+				return
+			}
+			if entry.GitRemote != "" {
+				url, err := getGitRemoteUrl(packagePath)
+				if err != nil {
+					entry.Status = Problem
+					entry.Summary = err.Error()
+					return
+				}
+				entry.RemoteURL = url
+			}
+			entry.Summary = summary
+			entry.DiffURL = fmt.Sprintf("%s/compare/%s...%s", entry.RemoteURL, oldcommit, commit)
+		}
 	}
 }
 
