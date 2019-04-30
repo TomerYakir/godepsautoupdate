@@ -14,3 +14,7 @@ Works with Go projects that manage the 3rd party libs using `gpm` (Godeps file)
 Example:
 `./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot`
 
+![Report Example](reportScreenshot.png?raw=true "Report Example")
+
+- Clicking on the package link would get to the repo page
+- Clicking on New Version would show a git compare between the old and new versions
