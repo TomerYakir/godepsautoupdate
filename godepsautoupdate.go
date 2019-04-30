@@ -54,21 +54,19 @@ func NewGoDepsEntry(path, commitVersion, gitRemote string) *GodepsEntry {
 func main() {
 	var godepsPath string
 	var gopath string
-	var report bool
-	var update bool
 
 	flag.StringVar(&godepsPath, "path", "", "path to godeps")
 	flag.StringVar(&gopath, "gopath", "", "path to packages root")
-	flag.BoolVar(&report, "report", false, "generate an HTML report")
-	flag.BoolVar(&update, "update", false, "update the godeps file")
 	flag.BoolVar(&debug, "debug", false, "turn on debug")
 
 	flag.Parse()
 
 	if godepsPath == "" {
+		flag.Usage()
 		panic("Godeps path wasn't specified")
 	}
 	if gopath == "" {
+		flag.Usage()
 		panic("Gopath wasn't specified")
 	}
 	gitRoot := getGitRoot(godepsPath)
@@ -79,13 +77,11 @@ func main() {
 
 	analyzeEntries(entries, gopath)
 
-	if report {
-		err := generateReportFile(entries)
-		if err != nil {
-			panicWithMessage("failed to generate the report file. error: %v", err)
-		}
-		openReportFile()
+	err := generateReportFile(entries)
+	if err != nil {
+		panicWithMessage("failed to generate the report file. error: %v", err)
 	}
+	openReportFile()
 
 }
 
