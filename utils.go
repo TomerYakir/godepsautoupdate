@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"os"
+	"strings"
 )
 
 func readFileContents(filePath string) string {
@@ -42,4 +43,8 @@ func dirExists(dirpath string) bool {
 		}
 	}
 	return true
+}
+
+func clearQuotes(s string) string {
+	return strings.Replace(s, "\"", "", -1)
 }

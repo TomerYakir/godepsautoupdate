@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 )
@@ -17,9 +16,10 @@ type GodepsEntry struct {
 	GitRemote            string
 	GitType              EntryType
 	Status               EntryStatus
+	RemoteURL            string
 	NewCommitVersion     string
 	NewCommitDateSummary string
-	NewCommitVersionURL  string
+	DiffURL              string
 	Summary              string
 }
 
@@ -28,6 +28,8 @@ type EntryStatus int
 const (
 	Uptodate EntryStatus = 0
 	Outdated EntryStatus = 1
+	Skipped  EntryStatus = 2
+	Problem  EntryStatus = 3
 )
 
 type EntryType int
@@ -36,15 +38,6 @@ const (
 	Commit        EntryType = 0
 	BranchVersion EntryType = 1
 )
-
-type analyzeResult struct {
-	path                 string
-	Status               EntryStatus
-	NewCommitVersion     string
-	NewCommitDateSummary string
-	NewCommitVersionURL  string
-	Summary              string
-}
 
 func NewGoDepsEntry(path, commitVersion, gitRemote string) *GodepsEntry {
 	g := &GodepsEntry{}
@@ -55,6 +48,9 @@ func NewGoDepsEntry(path, commitVersion, gitRemote string) *GodepsEntry {
 		g.GitType = Commit
 	} else {
 		g.GitType = BranchVersion
+	}
+	if g.GitRemote != "" {
+		g.RemoteURL = g.GitRemote
 	}
 	return g
 }
@@ -89,39 +85,46 @@ func main() {
 
 }
 
-func goget(gopath, packagePath string) {
-	logDebug("getting package %s", packagePath)
-	cmd := exec.Command("go", "get", packagePath)
-	cmd.Dir = path.Join(gopath, "src")
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s", gopath))
-	logDebug("running command %v", *cmd)
-	out, err := cmd.CombinedOutput()
+func analyzeEntry(entry *GodepsEntry, gopath string) {
 
-	if err != nil {
-		panic(fmt.Sprintf("failed to run go get for package %s.\nout: %v\nerr: %v", packagePath, string(out), err))
-	}
-}
-
-func analyzeEntry(entry *GodepsEntry, gopath string) analyzeResult {
-
-	r := analyzeResult{entry.Path, Uptodate, "", "", "", ""}
 	packagePath := path.Join(gopath, "src", entry.Path)
 	if !dirExists(packagePath) {
-		goget(gopath, entry.Path)
+		goget(gopath, entry.Path, packagePath, entry.GitRemote)
 	}
 	if entry.GitType == Commit {
 		// get commits
-		commit, dateSummary := getLatestGitCommit(packagePath)
-		r.NewCommitDateSummary = dateSummary
-		r.NewCommitVersion = commit
-		if entry.CommitVersion != r.NewCommitVersion {
-			r.Status = Outdated
+		commit, dateSummary, err := getLatestGitCommit(packagePath)
+		if err != nil {
+			entry.Status = Problem
+			entry.Summary = err.Error()
+			return
+		}
+		entry.NewCommitDateSummary = dateSummary
+		entry.NewCommitVersion = commit
+		if entry.CommitVersion != entry.NewCommitVersion {
+			entry.Status = Outdated
+			summary, err := getCommitDiffSummary(packagePath, entry.CommitVersion, commit)
+			if err != nil {
+				entry.Status = Problem
+				entry.Summary = err.Error()
+				return
+			}
+			if entry.GitRemote != "" {
+				url, err := getGitRemoteUrl(packagePath)
+				if err != nil {
+					entry.Status = Problem
+					entry.Summary = err.Error()
+					return
+				}
+				entry.RemoteURL = url
+			}
+			entry.Summary = summary
+			entry.DiffURL = fmt.Sprintf("%s/compare/%s...%s", entry.RemoteURL, entry.CommitVersion, entry.NewCommitVersion)
 		}
 	} else {
 		// tags or branches
+
 	}
-	return r
 }
 
 func analyzeEntries(entries []*GodepsEntry, gopath string) {
@@ -133,9 +136,13 @@ func analyzeEntries(entries []*GodepsEntry, gopath string) {
 		}
 	}
 	for _, entry := range entries {
+		if entry.Status == Skipped {
+			continue
+		}
+		// not parallelising this for now as there may be multiple packages that use the same path
 		logDebug("analysing entry %v", *entry)
-		result := analyzeEntry(entry, gopath)
-		logInfo("package %s - got commit %s, committed at %s", entry.Path, result.NewCommitVersion, result.NewCommitDateSummary)
+		analyzeEntry(entry, gopath)
+		logInfo("** package %s - data: %v", entry.Path, *entry)
 	}
 }
 
@@ -148,19 +155,21 @@ func readGodepsFile(gitRoot, godepsPath string) []*GodepsEntry {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
-		if strings.HasPrefix(line, "git@") {
-			logInfo("packages with @ in their paths aren't supported (yet). line: %s", line)
-			continue
-		}
 		tokens := strings.Fields(line)
 		if len(tokens) < 2 {
 			continue
 		}
 		var gitRemote string
 		if len(tokens) > 2 && strings.HasPrefix(tokens[2], "git.remote") {
-			gitRemote = tokens[2]
+			gitRemote = strings.Replace(tokens[2], "git.remote=", "", -1)
 		}
-		entries = append(entries, NewGoDepsEntry(tokens[0], tokens[1], gitRemote))
+		entry := NewGoDepsEntry(tokens[0], tokens[1], gitRemote)
+		if strings.HasPrefix(line, "git@") {
+			logInfo("packages with @ in their paths aren't supported (yet). line: %s", line)
+			entry.Status = Skipped
+			entry.Summary = "packages with @ in their paths aren't supported (yet)"
+		}
+		entries = append(entries, entry)
 	}
 	return entries
 }
