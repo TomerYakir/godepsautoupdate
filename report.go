@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	reportTemplate = "reportTemplate.html"
-	reportFile     = "report.html"
+	reportFile = "report.html"
 )
 
 type reportData struct {
@@ -34,7 +33,8 @@ func generateReportFile(entries []*GodepsEntry) error {
 			data.ProblemPackages++
 		}
 	}
-	tmpl := template.Must(template.ParseFiles(reportTemplate))
+
+	tmpl := template.Must(template.New("dependencies").Parse(string(GetHtmlTemplateBinData())))
 	f, err := os.Create(reportFile)
 	if err != nil {
 		return err
