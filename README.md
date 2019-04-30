@@ -1,5 +1,5 @@
 ## godepsautoupdate
-Script to report on status of dependencies (3rd party libs) - whether there's a newer version/commit available
+Script to report on status of dependencies (3rd party libs) - whether there's a newer version/commit available.
 Works with Go projects that manage the 3rd party libs using `gpm` (Godeps file)
 
 ### Usage
