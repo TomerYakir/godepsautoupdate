@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -19,6 +20,7 @@ type GodepsEntry struct {
 	IsSkipped            bool
 	IsProblem            bool
 	RemoteURL            string
+	ReleasesURL          string
 	NewCommitVersion     string
 	NewCommitDateSummary string
 	DiffURL              string
@@ -54,10 +56,12 @@ func NewGoDepsEntry(path, commitVersion, gitRemote string) *GodepsEntry {
 func main() {
 	var godepsPath string
 	var gopath string
+	var updateFile bool
 
 	flag.StringVar(&godepsPath, "path", "", "path to godeps")
 	flag.StringVar(&gopath, "gopath", "", "path to packages root")
 	flag.BoolVar(&debug, "debug", false, "turn on debug")
+	flag.BoolVar(&updateFile, "updateFile", false, "update the Godeps file")
 
 	flag.Parse()
 
@@ -72,7 +76,7 @@ func main() {
 	gitRoot := getGitRoot(godepsPath)
 	logDebug("got git root %s", gitRoot)
 
-	entries := readGodepsFile(gitRoot, godepsPath)
+	entries, content, contentMap := readGodepsFile(gitRoot, godepsPath)
 	logDebug("got entries %v", entries)
 
 	analyzeEntries(entries, gopath)
@@ -83,6 +87,31 @@ func main() {
 	}
 	openReportFile()
 
+	if updateFile {
+		updateGodepsFile(entries, godepsPath, content, contentMap)
+	}
+
+}
+
+func updateGodepsFile(entries []*GodepsEntry, godepsPath, content string, contentMap map[string]string) {
+	needUpdate := false
+	for _, entry := range entries {
+		if !entry.IsUpdated {
+			logDebug("entry %v is outdated", entry)
+			old := contentMap[entry.Path]
+			new := strings.Replace(old, entry.CommitVersion, entry.NewCommitVersion, 1)
+			content = strings.Replace(content, old, new, 1)
+			needUpdate = true
+		}
+	}
+	if needUpdate {
+		logDebug("content is now:ֿ\n%s", content)
+		if err := ioutil.WriteFile(godepsPath, []byte(content), 0644); err != nil {
+			panicWithMessage("failed to update godeps file. Error: %v", err)
+		}
+	} else {
+		logInfo("File already updated")
+	}
 }
 
 func analyzeEntry(entry *GodepsEntry, gopath string) {
@@ -103,6 +132,7 @@ func analyzeEntry(entry *GodepsEntry, gopath string) {
 		}
 		entry.RemoteURL = url
 	}
+	entry.ReleasesURL = fmt.Sprintf("%s/releases", strings.TrimSuffix(entry.RemoteURL, ".git"))
 	if entry.GitType == Commit {
 		// get commits
 		commit, dateSummary, err := getLatestGitCommit(packagePath)
@@ -173,10 +203,11 @@ func analyzeEntries(entries []*GodepsEntry, gopath string) {
 	}
 }
 
-func readGodepsFile(gitRoot, godepsPath string) []*GodepsEntry {
+func readGodepsFile(gitRoot, godepsPath string) ([]*GodepsEntry, string, map[string]string) {
 	entries := make([]*GodepsEntry, 0)
 	contents := readFileContents(godepsPath)
 	logDebug("got file contents %s", contents)
+	m := make(map[string]string)
 	lines := strings.Split(contents, "\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "#") {
@@ -196,7 +227,8 @@ func readGodepsFile(gitRoot, godepsPath string) []*GodepsEntry {
 			entry.IsSkipped = true
 			entry.Summary = "packages with @ in their paths aren't supported (yet)"
 		}
+		m[tokens[0]] = line
 		entries = append(entries, entry)
 	}
-	return entries
+	return entries, contents, m
 }

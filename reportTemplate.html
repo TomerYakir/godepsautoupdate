@@ -27,7 +27,7 @@
                 <tbody class="small">
                     {{range .Entries}}
                         <tr>
-                            <td><a href="{{.RemoteURL}}" target="_blank">{{.Path}}</a></td>
+                            <td><a href="{{.RemoteURL}}" target="_blank">{{.Path}}</a> <a href="{{.ReleasesURL}}" target="_blank"><small>(Releases)</small></a> </td>
                             {{if .IsSkipped}}
                                 <td><span class="badge badge-info">Skipped</span></td>
                             {{else if .IsProblem}}

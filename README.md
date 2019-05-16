@@ -24,3 +24,6 @@ cd bin
 
 - Clicking on the package link would get to the repo page
 - Clicking on New Version would show a git compare between the old and new versions
+
+### Developer notes
+If the reportTemplate.html changes, generate the bin data using `go-bindata -func GetHtmlTemplateBinData reportTemplate.html`.

@@ -41,9 +41,9 @@ func getLatestGitCommit(gitpath string) (string, string, error) {
 }
 
 func getLatestGitCommitByTag(gitpath string) (string, string, string, error) {
-	// git --no-pager tag --format='%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)' --sort=creatordate
+	// git --no-pager tag --format='%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)' --sort=tag
 	ignorableTags := []string{"rc", "night", "unstable"}
-	cmd := exec.Command("git", "--no-pager", "-C", gitpath, "tag", "--format=\"%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)\"", "--sort=creatordate")
+	cmd := exec.Command("git", "--no-pager", "-C", gitpath, "tag", "--format=\"%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)\"", "--sort=tag")
 	logDebug("running command %v", *cmd)
 	out, err := cmd.Output()
 	if err != nil {
