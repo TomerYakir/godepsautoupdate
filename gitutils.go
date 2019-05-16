@@ -147,7 +147,7 @@ func addRemote(gogetpath, gitremote, packagePath string) {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if !strings.Contains(string(out), "remote downstream already exists") {
-				panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
+				panicWithMessage("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
 			}
 		}
 		// git fetch downstream
@@ -155,16 +155,22 @@ func addRemote(gogetpath, gitremote, packagePath string) {
 		logDebug("running command %v", *cmd)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err))
+			panicWithMessage("failed to run git fetch downstream for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
 		}
 	}
 }
 
 func gitpull(packagePath string) {
-	cmd := exec.Command("git", "-C", packagePath, "pull")
+	cmd := exec.Command("git", "-C", packagePath, "checkout", "master")
 	logDebug("running command %v", *cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		panic(fmt.Sprintf("failed to run git remote add for package %s.\nout: %v\nerr: %v", packagePath, string(out), err))
+		logInfo("failed to run git pull for package %s.\nout: %v\nerr: %v", packagePath, string(out), err)
+	}
+
+	cmd = exec.Command("git", "-C", packagePath, "pull")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		logInfo("failed to run git pull for package %s.\nout: %v\nerr: %v", packagePath, string(out), err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 )
@@ -57,12 +58,23 @@ func main() {
 	var godepsPath string
 	var gopath string
 	var updateFile bool
+	var installDepsCommand string
+	var installDepsCommandDir string
+	var installDepsCommandArgs string
+	var buildCommand string
+	var buildCommandDir string
+	var buildCommandArgs string
 
 	flag.StringVar(&godepsPath, "path", "", "path to godeps")
 	flag.StringVar(&gopath, "gopath", "", "path to packages root")
 	flag.BoolVar(&debug, "debug", false, "turn on debug")
 	flag.BoolVar(&updateFile, "updateFile", false, "update the Godeps file")
-
+	flag.StringVar(&installDepsCommand, "installDepsCommand", "", "path to install deps command")
+	flag.StringVar(&installDepsCommandDir, "installDepsCommandDir", "", "path to install deps working dir")
+	flag.StringVar(&installDepsCommandArgs, "installDepsCommandArgs", "", "args for install deps command")
+	flag.StringVar(&buildCommand, "buildCommand", "", "path to build command")
+	flag.StringVar(&buildCommandDir, "buildCommandDir", "", "path to build source")
+	flag.StringVar(&buildCommandArgs, "buildCommandArgs", "", "args for build command")
 	flag.Parse()
 
 	if godepsPath == "" {
@@ -77,7 +89,7 @@ func main() {
 	logDebug("got git root %s", gitRoot)
 
 	entries, content, contentMap := readGodepsFile(gitRoot, godepsPath)
-	logDebug("got entries %v", entries)
+	logDebug("got entries %+v", entries)
 
 	analyzeEntries(entries, gopath)
 
@@ -91,6 +103,39 @@ func main() {
 		updateGodepsFile(entries, godepsPath, content, contentMap)
 	}
 
+	if buildCommand != "" {
+		build(installDepsCommand, installDepsCommandDir, installDepsCommandArgs, buildCommand, buildCommandDir, buildCommandArgs)
+	}
+
+}
+
+func build(installDepsCommand, installDepsCommandDir, installDepsCommandArgs, buildCommand, buildCommandDir, buildCommandArgs string) bool {
+	// install deps first
+	logInfo("installing dependencies... (this may take a while)")
+	out, err := runCommand(installDepsCommand, installDepsCommandDir, installDepsCommandArgs)
+	if err != nil {
+		logInfo("Failed to run the install deps command. Error was: %v\nOutput: %v", err, out)
+		return false
+	}
+	// try build
+	logInfo("building... (this may take a while)")
+	out, err = runCommand(buildCommand, buildCommandDir, buildCommandArgs)
+	if err != nil {
+		logInfo("Failed to run the build command. Error was: %v\nOutput: %v", err, out)
+		return false
+	}
+	return true
+}
+
+func runCommand(cmd, cmdDir, cmdArgs string) (string, error) {
+	cmdArgsSplit := strings.Fields(cmdArgs)
+	c := exec.Command(cmd, cmdArgsSplit...)
+	c.Dir = cmdDir
+	c.Env = os.Environ()
+	logDebug("running command %v", *c)
+	out, err := c.CombinedOutput()
+	logDebug("got output %s", string(out))
+	return string(out), err
 }
 
 func updateGodepsFile(entries []*GodepsEntry, godepsPath, content string, contentMap map[string]string) {

@@ -31,5 +31,12 @@ cd bin
 ./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot --updateFile
 ```
 
+4. Update dependencies and build
+```
+cd bin
+./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot --updateFile 
+--buildCommand go --buildCommandDir ~/myGoProgram/myroot/src/main --buildCommandArgs "build myProgram.go" --installDepsCommand ~/myGoProgram/myroot/src/gpm --installDepsCommandDir ~/myGoProgram/myroot/src --installDepsCommandArgs "--verbose"
+```
+
 ### Developer notes
 If the reportTemplate.html changes, generate the bin data using `go-bindata -func GetHtmlTemplateBinData reportTemplate.html`.
