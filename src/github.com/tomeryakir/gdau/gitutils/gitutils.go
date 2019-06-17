@@ -131,7 +131,7 @@ func GetGitRoot(godepsPath string, logger *utils.Logger) string {
 }
 
 // Goget - get go package
-func Goget(gopath, gogetpath, packagePath, gitremote string, logger *utils.Logger) {
+func Goget(gopath, gogetpath, packagePath, gitremote string, logger *utils.Logger) error {
 	logger.LogDebug("getting package %s", gogetpath)
 	cmd := exec.Command("go", "get", gogetpath)
 	cmd.Dir = path.Join(gopath, "src")
@@ -141,14 +141,14 @@ func Goget(gopath, gogetpath, packagePath, gitremote string, logger *utils.Logge
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if !strings.Contains(string(out), "no Go files in") {
-			logger.PanicWithMessage("failed to run go get for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
+			return fmt.Errorf("failed to run go get for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
 		}
 	}
-	AddRemote(gogetpath, gitremote, packagePath, logger)
+	return AddRemote(gogetpath, gitremote, packagePath, logger)
 }
 
 // AddRemote - add remote repo to path
-func AddRemote(gogetpath, gitremote, packagePath string, logger *utils.Logger) {
+func AddRemote(gogetpath, gitremote, packagePath string, logger *utils.Logger) error {
 	if gitremote != "" {
 		logger.LogDebug("adding remote %s to %s", gitremote, packagePath)
 		// git remote add downstream ""
@@ -165,9 +165,10 @@ func AddRemote(gogetpath, gitremote, packagePath string, logger *utils.Logger) {
 		logger.LogDebug("running command %v", *cmd)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			logger.PanicWithMessage("failed to run git fetch downstream for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
+			return fmt.Errorf("failed to run git fetch downstream for package %s.\nout: %v\nerr: %v", gogetpath, string(out), err)
 		}
 	}
+	return nil
 }
 
 // Gitpull - git pull

@@ -23,16 +23,14 @@ type reportData struct {
 func GenerateReportFile(entries []*dep.Entry) error {
 	data := reportData{0, 0, 0, 0, entries}
 	for _, entry := range entries {
-		if entry.IsUpdated {
+		if entry.IsSkipped {
+			data.SkippedPackages++
+		} else if entry.IsProblem {
+			data.ProblemPackages++
+		} else if entry.IsUpdated {
 			data.UptodatePackages++
 		} else {
 			data.OutdatedPackages++
-		}
-		if entry.IsSkipped {
-			data.SkippedPackages++
-		}
-		if entry.IsProblem {
-			data.ProblemPackages++
 		}
 	}
 

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -27,6 +28,12 @@ func ReadFileContents(filePath string, logger *Logger) string {
 		logger.PanicWithMessage("failed to read from godeps file. Error: %v", err)
 	}
 	return string(buf.Bytes())
+}
+
+func WriteFile(path, content string, logger *Logger) {
+	if err := ioutil.WriteFile(path, []byte(content), 0644); err != nil {
+		logger.PanicWithMessage("failed to update godeps file. Error: %v", err)
+	}
 }
 
 func DirExists(dirpath string) bool {

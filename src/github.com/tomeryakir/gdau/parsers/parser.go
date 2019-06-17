@@ -2,10 +2,6 @@ package parsers
 
 import (
 	"encoding/hex"
-	"io/ioutil"
-	"strings"
-
-	"github.com/tomeryakir/gdau/utils"
 )
 
 type Entry struct {
@@ -57,32 +53,19 @@ func isHexString(s string) bool {
 
 // Parser interface - for reading dependency files
 type Parser interface {
-	ReadFile(string, string) ([]*Entry, string, map[string]string)
+	// ReadFile - get gitroot and dep path; return slice of Entries, file content and map of entries with lines
+	ReadFile(string, string) ([]*Entry, string, map[string]string, map[string]*Entry)
+
+	// UpdateFile - get slice of processed entries, raw content, map of entries with lines, map of entry path with Entry
+	UpdateFile([]*Entry, string, map[string]string, map[string]*Entry)
 	GitRoot() string
 	DepPath() string
 }
 
-func UpdateDependencyFile(entries []*Entry, godepsPath, content string, contentMap map[string]string, logger *utils.Logger) {
-	needUpdate := false
-	for _, entry := range entries {
-		if !entry.IsUpdated {
-			logger.LogDebug("entry %v is outdated", entry)
-			old := contentMap[entry.Path]
-			new := strings.Replace(old, entry.CommitVersion, entry.NewCommitVersion, 1)
-			content = strings.Replace(content, old, new, 1)
-			needUpdate = true
-		}
-	}
-	if needUpdate {
-		logger.LogDebug("content is now:ֿ\n%s", content)
-		if err := ioutil.WriteFile(godepsPath, []byte(content), 0644); err != nil {
-			logger.PanicWithMessage("failed to update godeps file. Error: %v", err)
-		}
-	} else {
-		logger.LogInfo("File already updated")
-	}
+func ReadDependencyFile(p Parser) ([]*Entry, string, map[string]string, map[string]*Entry) {
+	return p.ReadFile(p.GitRoot(), p.DepPath())
 }
 
-func ReadDependencyFile(p Parser) ([]*Entry, string, map[string]string) {
-	return p.ReadFile(p.GitRoot(), p.DepPath())
+func UpdateDependencyFile(p Parser, entries []*Entry, content string, contentMap map[string]string, entryMap map[string]*Entry) {
+	p.UpdateFile(entries, content, contentMap, entryMap)
 }

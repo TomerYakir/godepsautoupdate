@@ -42,10 +42,16 @@ func main() {
 	logger.LogDebug("got git root %s", gitRoot)
 
 	var parser dep.Parser
-	if tipe == "gpm" {
+	switch tipe {
+	case "gpm":
 		parser = dep.NewGPMParser(gitRoot, depsPath, logger)
+	case "dep":
+		parser = dep.NewGopkgParser(gitRoot, depsPath, logger)
+	default:
+		logger.PanicWithMessage("unsupported dependency format %s", tipe)
 	}
-	entries, content, contentMap := dep.ReadDependencyFile(parser)
+
+	entries, content, contentMap, entryMap := dep.ReadDependencyFile(parser)
 	logger.LogDebug("got entries %+v", entries)
 
 	analyzeEntries(entries, gopath, logger)
@@ -57,7 +63,7 @@ func main() {
 	report.OpenReportFile()
 
 	if updateFile {
-		dep.UpdateDependencyFile(entries, depsPath, content, contentMap, logger)
+		dep.UpdateDependencyFile(parser, entries, content, contentMap, entryMap)
 	}
 
 }
@@ -77,9 +83,17 @@ func analyzeEntry(entry *dep.Entry, gopath string, logger *utils.Logger) {
 	logger.LogInfo("analyzing package %s", entry.Path)
 	packagePath := path.Join(gopath, "src", entry.Path)
 	if !utils.DirExists(packagePath) {
-		git.Goget(gopath, entry.Path, packagePath, entry.GitRemote, logger)
+		if err := git.Goget(gopath, entry.Path, packagePath, entry.GitRemote, logger); err != nil {
+			entry.Summary = err.Error()
+			entry.IsProblem = true
+			return
+		}
 	} else {
-		git.AddRemote(entry.Path, entry.GitRemote, packagePath, logger)
+		if err := git.AddRemote(entry.Path, entry.GitRemote, packagePath, logger); err != nil {
+			entry.Summary = err.Error()
+			entry.IsProblem = true
+			return
+		}
 		git.Gitpull(packagePath, logger)
 	}
 	if entry.GitRemote == "" {
