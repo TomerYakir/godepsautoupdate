@@ -3,7 +3,7 @@ Script to report on status of dependencies (3rd party libs) - whether there's a 
 Works with Go projects that manage the 3rd party libs using the following dependecy file formats:
 1. `gpm` (Godeps file, default)
 2. `go dep` (Gopkg file)
-3. `go modules`
+3. `go modules` (coming soon!)
 
 ### Usage
 1. Get the tool
