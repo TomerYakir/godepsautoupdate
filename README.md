@@ -1,6 +1,9 @@
 ## godepsautoupdate
 Script to report on status of dependencies (3rd party libs) - whether there's a newer version/commit available.
-Works with Go projects that manage the 3rd party libs using `gpm` (Godeps file)
+Works with Go projects that manage the 3rd party libs using the following dependecy file formats:
+1. `gpm` (Godeps file, default)
+2. `go dep` (Gopkg file)
+3. `go modules` (coming soon!)
 
 ### Usage
 1. Get the tool
@@ -20,6 +23,13 @@ cd bin
 ./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot
 ```
 
+Example #2:
+```
+cd bin
+./godepsautoupdate --path ~/myGoProgram/Gopkg.toml --gopath ~/myGoProgram/myroot --deptype dep
+```
+
+
 ![Report Example](reportScreenshot.png?raw=true "Report Example")
 
 - Clicking on the package link would get to the repo page
@@ -29,13 +39,6 @@ cd bin
 ```
 cd bin
 ./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot --updateFile
-```
-
-4. Update dependencies and build
-```
-cd bin
-./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot --updateFile 
---buildCommand go --buildCommandDir ~/myGoProgram/myroot/src/main --buildCommandArgs "build myProgram.go" --installDepsCommand ~/myGoProgram/myroot/src/gpm --installDepsCommandDir ~/myGoProgram/myroot/src --installDepsCommandArgs "--verbose"
 ```
 
 ### Developer notes

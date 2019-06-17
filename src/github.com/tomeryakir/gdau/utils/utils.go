@@ -1,16 +1,16 @@
-package main
+package utils
 
 import (
 	"bytes"
-	"encoding/hex"
+	"io/ioutil"
 	"os"
 	"strings"
 )
 
-func readFileContents(filePath string) string {
+func ReadFileContents(filePath string, logger *Logger) string {
 	f, err := os.Open(filePath)
 	if err != nil {
-		panicWithMessage("failed to open godeps file. Error: %v", err)
+		logger.PanicWithMessage("failed to open godeps file. Error: %v", err)
 	}
 	defer f.Close()
 	var n int64 = bytes.MinRead
@@ -25,17 +25,18 @@ func readFileContents(filePath string) string {
 	}
 	_, err = buf.ReadFrom(f)
 	if err != nil {
-		panicWithMessage("failed to read from godeps file. Error: %v", err)
+		logger.PanicWithMessage("failed to read from godeps file. Error: %v", err)
 	}
 	return string(buf.Bytes())
 }
 
-func isHexString(s string) bool {
-	_, err := hex.DecodeString(s)
-	return err == nil
+func WriteFile(path, content string, logger *Logger) {
+	if err := ioutil.WriteFile(path, []byte(content), 0644); err != nil {
+		logger.PanicWithMessage("failed to update godeps file. Error: %v", err)
+	}
 }
 
-func dirExists(dirpath string) bool {
+func DirExists(dirpath string) bool {
 	_, err := os.Stat(dirpath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -45,6 +46,6 @@ func dirExists(dirpath string) bool {
 	return true
 }
 
-func clearQuotes(s string) string {
+func ClearQuotes(s string) string {
 	return strings.Replace(strings.Replace(s, "\"", "", -1), "'", "", -1)
 }

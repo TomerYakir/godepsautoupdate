@@ -1,9 +1,11 @@
-package main
+package report
 
 import (
 	"os"
 	"os/exec"
 	"text/template"
+
+	dep "github.com/tomeryakir/gdau/parsers"
 )
 
 const (
@@ -15,22 +17,20 @@ type reportData struct {
 	OutdatedPackages int
 	SkippedPackages  int
 	ProblemPackages  int
-	Entries          []*GodepsEntry
+	Entries          []*dep.Entry
 }
 
-func generateReportFile(entries []*GodepsEntry) error {
+func GenerateReportFile(entries []*dep.Entry) error {
 	data := reportData{0, 0, 0, 0, entries}
 	for _, entry := range entries {
-		if entry.IsUpdated {
+		if entry.IsSkipped {
+			data.SkippedPackages++
+		} else if entry.IsProblem {
+			data.ProblemPackages++
+		} else if entry.IsUpdated {
 			data.UptodatePackages++
 		} else {
 			data.OutdatedPackages++
-		}
-		if entry.IsSkipped {
-			data.SkippedPackages++
-		}
-		if entry.IsProblem {
-			data.ProblemPackages++
 		}
 	}
 
@@ -44,6 +44,6 @@ func generateReportFile(entries []*GodepsEntry) error {
 
 }
 
-func openReportFile() {
+func OpenReportFile() {
 	exec.Command("open", reportFile).Run()
 }
