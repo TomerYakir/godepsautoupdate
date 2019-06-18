@@ -20,13 +20,13 @@ cd bin
 ./godepsautoupdate --path <GO_DEPS_FILE_PATH> --gopath <GO_PACKAGES_ROOT_PATH>
 ```
 
-Example:
+Example - gpm format:
 ```
 cd bin
 ./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot
 ```
 
-Example #2:
+Example #2 - dep (gopkg) format:
 ```
 cd bin
 ./godepsautoupdate --path ~/myGoProgram/Gopkg.toml --gopath ~/myGoProgram/myroot --deptype dep
@@ -38,7 +38,7 @@ cd bin
 - Clicking on the package link would get to the repo page
 - Clicking on New Version would show a git compare between the old and new versions
 
-3. Update the Godeps file
+3. Update the dependency file
 ```
 cd bin
 ./godepsautoupdate --path ~/myGoProgram/Godeps --gopath ~/myGoProgram/myroot --updateFile
