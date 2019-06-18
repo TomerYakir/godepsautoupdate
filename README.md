@@ -8,7 +8,10 @@ Works with Go projects that manage the 3rd party libs using the following depend
 ### Usage
 1. Get the tool
 ```
-go get -u github.com/TomerYakir/godepsautoupdate
+git clone https://github.com/TomerYakir/godepsautoupdate.git
+cd godepsautoupdate
+export GOPATH=`pwd`
+go build godepsautoupdate.go
 ```
 
 2. Output an html report with the results
