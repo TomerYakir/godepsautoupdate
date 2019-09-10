@@ -105,12 +105,22 @@ func stringContains(s []string, v string) bool {
 
 // GetGitRemoteURL - get remote origin url
 func GetGitRemoteURL(gitpath string, logger *utils.Logger) (string, error) {
+	var err error
+	var out []byte
 	cmd := exec.Command("git", "-C", gitpath, "config", "--get", "remote.origin.url")
 	logger.LogDebug("running command %v", *cmd)
-	out, err := cmd.Output()
+	out, err = cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get git remote url for %s. err: %v", gitpath, err)
+		// try with remote.downstream.url
+		logger.LogDebug("trying with fallback method")
+		cmd = exec.Command("git", "-C", gitpath, "config", "--get", "remote.downstream.url")
+		logger.LogDebug("running (fallback) command %v", *cmd)
+		out, err = cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("failed to get git remote url for %s. err: %v", gitpath, err)
+		}
 	}
+
 	lines := strings.Split(string(out), "\n")
 	if len(lines) == 0 {
 		return "", fmt.Errorf("Failed to get git remote url output for %s", gitpath)
