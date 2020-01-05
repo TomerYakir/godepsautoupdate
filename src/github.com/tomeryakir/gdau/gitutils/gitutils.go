@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/tomeryakir/gdau/utils"
@@ -46,9 +47,9 @@ func GetLatestGitCommit(gitpath string, logger *utils.Logger) (string, string, e
 
 // GetLatestGitCommitByTag - getting latest git commit by tag
 func GetLatestGitCommitByTag(gitpath string, logger *utils.Logger) (string, string, string, error) {
-	// git --no-pager tag --format='%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)' --sort=tag
-	ignorableTags := []string{"rc", "night", "unstable"}
-	cmd := exec.Command("git", "--no-pager", "-C", gitpath, "tag", "--format=\"%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)\"", "--sort=tag")
+	ignorableTags := []string{"rc", "night", "unstable", "beta", "alpha", "dev"}
+	acceptedTagPrefixes := []string{"v", "r"}
+	cmd := exec.Command("git", "--no-pager", "-C", gitpath, "tag", "--format=\"%(creatordate:iso);%(creatordate:relative);%(refname:strip=2)\"", "--sort=creatordate")
 	logger.LogDebug("running command %v", *cmd)
 	out, err := cmd.Output()
 	if err != nil {
@@ -66,7 +67,12 @@ func GetLatestGitCommitByTag(gitpath string, logger *utils.Logger) (string, stri
 		if len(tokens) < 2 {
 			continue
 		}
-		if !stringContains(ignorableTags, tokens[2]) {
+		if tokens[2] == "" || len(tokens[2]) < 2 {
+			continue
+		}
+		tagPrefix := string(tokens[2][0])
+		tagPostPrefix := string(tokens[2][1])
+		if !stringContains(ignorableTags, tokens[2]) && ((stringEquals(acceptedTagPrefixes, tagPrefix) && stringIsNumber(tagPostPrefix)) || stringIsNumber(tagPrefix)) {
 			latestTagDate = tokens[0]
 			latestTagRelDate = tokens[1]
 			latestTag = tokens[2]
@@ -92,6 +98,22 @@ func GetCommitByTag(gitpath, tag string, logger *utils.Logger) (string, error) {
 		return "", fmt.Errorf("Failed to get git tag output for %s", gitpath)
 	}
 	return utils.ClearQuotes(lines[0]), nil
+}
+
+func stringIsNumber(v string) bool {
+	if _, err := strconv.Atoi(v); err == nil {
+		return true
+	}
+	return false
+}
+
+func stringEquals(s []string, v string) bool {
+	for _, sv := range s {
+		if v == sv {
+			return true
+		}
+	}
+	return false
 }
 
 func stringContains(s []string, v string) bool {
@@ -183,14 +205,33 @@ func AddRemote(gogetpath, gitremote, packagePath string, logger *utils.Logger) e
 
 // Gitpull - git pull
 func Gitpull(packagePath string, logger *utils.Logger) {
-	cmd := exec.Command("git", "-C", packagePath, "checkout", "master")
+	// get default branch
+	cmd := exec.Command("git", "-C", packagePath, "ls-remote", "--symref")
 	logger.LogDebug("running command %v", *cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.LogInfo("failed to run git pull for package %s.\nout: %v\nerr: %v", packagePath, string(out), err)
+		logger.LogInfo("failed to find default branch %s.\nout: %v\nerr: %v", packagePath, string(out), err)
+	}
+	defaultBranch := "master"
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "ref:") && strings.Contains(line, "refs/heads/") && strings.Contains(line, "HEAD") {
+			tokens := strings.Fields(line)
+			if len(tokens) < 2 {
+				continue
+			}
+			defaultBranch = strings.ReplaceAll(tokens[1], "refs/heads/", "")
+		}
 	}
 
+	// switch to branch
+	cmd = exec.Command("git", "-C", packagePath, "checkout", defaultBranch)
+	logger.LogDebug("running command %v", *cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		logger.LogInfo("failed to run git checkout for package %s.\nout: %v\nerr: %v", packagePath, string(out), err)
+	}
 	cmd = exec.Command("git", "-C", packagePath, "pull")
+	logger.LogDebug("running command %v", *cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		logger.LogInfo("failed to run git pull for package %s.\nout: %v\nerr: %v", packagePath, string(out), err)

@@ -82,6 +82,15 @@ func runCommand(cmd, cmdDir, cmdArgs string, logger *utils.Logger) (string, erro
 func analyzeEntry(entry *dep.Entry, gopath string, logger *utils.Logger) {
 	logger.LogInfo("analyzing package %s", entry.Path)
 	packagePath := path.Join(gopath, "src", entry.Path)
+	if utils.DirExists(packagePath) && entry.GitRemote == "" {
+		url, err := git.GetGitRemoteURL(packagePath, logger)
+		if err != nil {
+			entry.IsProblem = true
+			entry.Summary = err.Error()
+			return
+		}
+		entry.RemoteURL = url
+	}
 	if !utils.DirExists(packagePath) {
 		if err := git.Goget(gopath, entry.Path, packagePath, entry.GitRemote, logger); err != nil {
 			entry.Summary = err.Error()
@@ -96,15 +105,7 @@ func analyzeEntry(entry *dep.Entry, gopath string, logger *utils.Logger) {
 		}
 		git.Gitpull(packagePath, logger)
 	}
-	if entry.GitRemote == "" {
-		url, err := git.GetGitRemoteURL(packagePath, logger)
-		if err != nil {
-			entry.IsProblem = true
-			entry.Summary = err.Error()
-			return
-		}
-		entry.RemoteURL = url
-	}
+
 	entry.ReleasesURL = fmt.Sprintf("%s/releases", strings.TrimSuffix(entry.RemoteURL, ".git"))
 	if entry.GitType == dep.Commit {
 		// get commits
